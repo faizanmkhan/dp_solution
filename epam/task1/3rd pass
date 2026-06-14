@@ -13,7 +13,7 @@ echo "$header" >> "$output_file"
 
 declare -A email_count
 
-# Pass 1: count email usernames
+# Pass 1: count email usernames (skip header with tail -n +2)
 while IFS=',' read -r f1 f2 f3 rest || [ -n "$f1" ]; do
     read -r first last <<< "$f3"
     first_lc="${first,,}"
@@ -24,32 +24,19 @@ done < <(tail -n +2 "$input_file")
 
 echo "Email duplicate scan complete."
 
-# Pass 2: build output
+# Pass 2: build output (skip header with tail -n +2)
 while IFS=',' read -r f1 f2 f3 rest || [ -n "$f1" ]; do
-    # Extract title, email, department from rest (working from end to handle quoted commas in title)
-    f6="${rest##*,}"
-    temp="${rest%,$f6}"
-    f5="${temp##*,}"
-    f4="${temp%,$f5}"
+    # Extract f4 (title), f5 (email), f6 (department) from rest
+    # Working from the end to correctly handle quoted titles with commas inside
+    f6="${rest##*,}"          # department = everything after last comma
+    temp="${rest%,$f6}"       # strip ,department from end
+    f5="${temp##*,}"          # email = everything after last comma of temp
+    f4="${temp%,$f5}"         # title = everything before ,email (preserves quoted commas)
 
     read -r first last <<< "$f3"
     first_lc="${first,,}"
     last_lc="${last,,}"
-
-    # Capitalize first name
-    first_cap="${first_lc^}"
-
-    # Capitalize last name — handle hyphenated surnames
-    last_cap="${last_lc^}"
-    if [[ "$last_cap" == *-* ]]; then
-        before="${last_cap%-*}"
-        after="${last_cap#*-}"
-        last_cap="${before}-${after^}"
-    fi
-
-    new_name="$first_cap $last_cap"
-
-    # Email always uses simple lowercase (no hyphen-cap fix needed)
+    new_name="${first_lc^} ${last_lc^}"
     email_user="${first_lc:0:1}${last_lc}"
 
     if [ "${email_count[$email_user]}" -gt 1 ]; then

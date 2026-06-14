@@ -1,0 +1,40 @@
+#!/bin/bash
+
+input_file="$1"
+output_file="accounts_new.csv"
+
+>"$output_file"
+
+read -r header < "$input_file"
+echo "$header" >> "$output_file"
+
+declare -A email_count
+
+while IFS=',' read -r w1 w2 w3 rest || [ -n "$w1" ]; do
+    read -r first last <<< "$w3"
+    first_lw="${first,,}"
+    last_lw="${last,,}"
+    email_user="${first_lw:0:1}${last_lw}"
+    email_count["$email_user"]=$(( ${email_count["$email_user"]:-0} + 1 ))
+done < <(tail -n +2 "$input_file")
+
+while IFS=',' read -r w1 w2 w3 rest || [ -n "w1" ]; do
+    w6="${rest##*,}"
+    temp="${rest%,*}"
+    w5="${temp##*,}"
+    w4="${rest%,$w5,$w6}"
+    
+    read -r first last <<< "$w3"
+    first_lw="${first,,}"
+    last_lw="${last,,}"
+    new_name="${first_lw^} ${last_lw^}"
+    email_user="${first_lw:0:1}${last_lw}"
+
+    if [ "${email_count[$email_user]}" -gt 1 ]; then
+        email="${email_user}${w2}@abc.com"
+    else
+        email="${email_user}@abc.com"
+    fi
+
+    printf "%s,%s,%s,%s,%s,%s\n" "$w1" "$w2" "$new_name" "$w4" "$email" "$w6" >> "$output_file"
+done < <(tail -n +2 "$input_file")
